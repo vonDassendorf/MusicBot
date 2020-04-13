@@ -67,6 +67,7 @@
     "cmd-summon-novc": "You are not in a voice channel!",
     "cmd-summon-noperms-connect": "Cannot join channel `{0}`, no permission to connect.",
     "cmd-summon-noperms-speak": "Cannot join channel `{0}`, no permission to speak.",
+    "cmd-summon-channel-not-permitted": "Will not join channel `{0}/{1}`, restricted to channels:\n",
     "cmd-summon-reply": "Connected to `{0.name}`",
     "cmd-pause-reply": "Paused music in `{0.name}`",
     "cmd-pause-none": "Player is not playing.",
