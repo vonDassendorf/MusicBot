@@ -46,6 +46,7 @@ class Config:
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
+        self.restrict_to_channels = config.get('Chat', 'RestrictToChannels', fallback=ConfigDefaults.restrict_to_channels)
         self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
         self.dm_nowplaying = config.getboolean('Chat', 'DMNowPlaying', fallback=ConfigDefaults.dm_nowplaying)
@@ -186,6 +187,13 @@ class Config:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
+        if self.restrict_to_channels:
+            try:
+                self.restrict_to_channels = set(x for x in self.restrict_to_channels.replace(',', ' ').split() if x)
+            except:
+                log.warning("RestrictToChannels data is invalid, will not restrict to any channels")
+                self.restrict_to_channels = set()
+
         if self.autojoin_channels:
             try:
                 self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
@@ -207,6 +215,8 @@ class Config:
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
         self.bound_channels = set(int(item) for item in self.bound_channels)
+
+        self.restrict_to_channels = set(int(item) for item in self.restrict_to_channels)
 
         self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
@@ -335,6 +345,7 @@ class ConfigDefaults:
 
     command_prefix = '!'
     bound_channels = set()
+    restrict_to_channels = set()
     unbound_servers = False
     autojoin_channels = set()
     dm_nowplaying = False

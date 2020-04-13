@@ -290,6 +290,11 @@ class MusicBot(discord.Client):
                     log.info("Will not join channel \"{}\", no permission to speak.".format(channel.name))
                     continue
 
+                elif self.config.restrict_to_channels and channel not in self.restricted_to_channels:
+                    log.info("Will not join channel \"{}\", restricted to only join specific channels:".format(channel.name))
+                    [log.info(' - {}/{}'.format(ch.guild.name.strip(), ch.name.strip())) for ch in self.restricted_to_channels if ch]
+                    continue
+
                 try:
                     player = await self.get_player(channel, create=True, deserialize=self.config.persistent_queue)
                     joined_servers.add(guild)
@@ -1038,12 +1043,39 @@ class MusicBot(discord.Client):
         else:
             log.info("Not bound to any text channels")
 
+        if self.config.restrict_to_channels:
+            chlist = set(self.get_channel(i) for i in self.config.restrict_to_channels if i)
+            chlist.discard(None)
+
+            invalids = set()
+            invalids.update(c for c in chlist if isinstance(c, discord.TextChannel))
+
+            chlist.difference_update(invalids)
+
+            if chlist:
+                log.info("Restricted to voice channels:")
+                [log.info(' - {}/{}'.format(ch.guild.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            else:
+                log.info("Not restricted to any voice channels")
+
+            if invalids and self.config.debug_mode:
+                print(flush=True)
+                log.info("RestrictedToChannels is meant to restrict the bot to specific voice channels."
+                         "Use BindToChannel option to restrict the bot to text channels:")
+                [log.info(' - {}/{}'.format(ch.guild.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+            self.restricted_to_channels = chlist
+        else:
+            log.info("Not restricted to any voice channels")
+            self.restricted_to_channels = set()
+
         if self.config.autojoin_channels:
             chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
             chlist.discard(None)
 
             invalids = set()
-            invalids.update(c for c in chlist if isinstance(c, discord.TextChannel))
+            invalids.update(c for c in chlist if isinstance(c, discord.TextChannel) or c not in self.restricted_to_channels)
 
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
@@ -1056,7 +1088,8 @@ class MusicBot(discord.Client):
 
             if invalids and self.config.debug_mode:
                 print(flush=True)
-                log.info("Cannot autojoin text channels:")
+                log.info("Cannot autojoin following channels because they are either "
+                         "text channels or bot is restricted:")
                 [log.info(' - {}/{}'.format(ch.guild.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             self.autojoin_channels = chlist
@@ -1972,6 +2005,11 @@ class MusicBot(discord.Client):
         Call the bot to the summoner's voice channel.
         """
 
+        print(channel)
+        print(guild)
+        print(author.voice)
+        print(voice_channel)
+
         if not author.voice:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
@@ -1993,6 +2031,18 @@ class MusicBot(discord.Client):
                 log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice.channel.name))
                 raise exceptions.CommandError(
                     self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice.channel.name),
+                    expire_in=25
+                )
+
+            elif author.voice.channel not in self.restricted_to_channels:
+                log.info("Will not join channel '{0}/{1}', restricted to only join specific channels".format(
+                    author.voice.channel.guild, author.voice.channel.name))
+                raise exceptions.CommandError(
+                    self.str.get('cmd-summon-channel-not-permitted',
+                                 "Will not join channel `{0}/{1}`, restricted to channels:\n").format(
+                        author.voice.channel.guild, author.voice.channel.name) +
+                    "\n".join(['`'+c.guild.name+'/'+c.name+'`' for c in self.restricted_to_channels
+                               if author.voice.channel.guild == c.guild]),
                     expire_in=25
                 )
 
