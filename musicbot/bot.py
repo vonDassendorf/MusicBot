@@ -2009,7 +2009,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
         voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice.channel.guild:
+        if voice_client and guild == author.voice.channel.guild and author.voice.channel in self.restricted_to_channels:
             await voice_client.move_to(author.voice.channel)
         else:
             # move to _verify_vc_perms?
