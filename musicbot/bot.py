@@ -2038,7 +2038,7 @@ class MusicBot(discord.Client):
                     expire_in=25
                 )
 
-            elif author.voice.channel not in self.restricted_to_channels:
+            elif self.config.restrict_to_channels and author.voice.channel not in self.restricted_to_channels:
                 log.info("Will not join channel '{0}/{1}', restricted to only join specific channels".format(
                     author.voice.channel.guild, author.voice.channel.name))
                 raise exceptions.CommandError(
