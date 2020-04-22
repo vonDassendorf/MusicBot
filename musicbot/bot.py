@@ -35,7 +35,7 @@ from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
-from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable, format_song_duration
 from .spotify import Spotify
 from .json import Json
 
@@ -1852,51 +1852,51 @@ class MusicBot(discord.Client):
                 result_header += "\n\n"
 
             for e in info['entries']:
-                # First lets make sure song duration is displayed correctly
-                # This section might be unnecessary but could not find if its done anywhere else
-                # We don't want to show hours if not necessary
-                duration_to_readable = ftimedelta(timedelta(seconds=e['duration']))
-                duration_array = duration_to_readable.split(':')
-                song_duration = duration_to_readable \
-                    if int(duration_array[0]) > 0 \
-                    else "{0}:{1}".format(duration_array[1], duration_array[2])
-
-                # Then we format the string we present in the result reply
-                if self.config.embeds:
-                    result_message_array.append(
-                        self.str.get('cmd-search-list-entry-embed', '**{0}**. [{1}]({2}) | {3}').format(
-                        info['entries'].index(e) + 1,e['title'],e['webpage_url'],song_duration))
-                else:
-                    result_message_array.append(
-                        self.str.get('cmd-search-list-entry-noembed', '**{0}**. {1} | {2}').format(
-                            info['entries'].index(e) + 1, e['title'], song_duration))
-
+                # This formats the results and adds it to an array
+                # format_song_duration removes the hour section
+                # if the song is shorter than an hour
+                result_message_array.append(
+                    self.str.get('cmd-search-list-entry', '**{0}**. **{1}** | {2}').format(
+                    info['entries'].index(e) + 1,e['title'],format_song_duration(
+                            ftimedelta(timedelta(seconds=e['duration'])))))
+            # This combines the formatted result strings into one list.
             result_string = "\n".join('{0}'.format(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
 
-            # Add the result entries to the message and send it to the channel
             if self.config.embeds:
-                content.add_field(name=self.str.get('cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
+                # Add the result entries to the embedded message and send it to the channel
+                content.add_field(name=self.str.get(
+                    'cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
                 result_message = await self.safe_send_message(channel, content)
             else:
+                # Construct the complete message and send it to the channel.
                 result_string = result_header + result_string
                 result_string += "\n\nSelect song by typing the corresponding number or type cancel to cancel search"
-                result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
+                result_message = await self.safe_send_message(
+                    channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
 
+            # Check to verify that recived message is valid.
             def check(reply):
-                return -1 <= int(reply.content) - 1 <= len(info['entries']) and reply.author == message.author
+                return reply.channel.id == channel.id \
+                       and reply.author == message.author \
+                       and reply.content.isdigit() \
+                       and -1 <= int(reply.content) - 1 <= len(info['entries'])
 
+            # Wait for a response from the author.
             try:
                 choice = await self.wait_for('message', timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
 
+
             if choice.content == '0':
+                # Choice 0 will cancel the search
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
             else:
+                # Here we have a valid choice lets queue it.
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
@@ -1910,6 +1910,7 @@ class MusicBot(discord.Client):
                     return Response(self.str.get('cmd-search-accept-list-noembed', "{0} added to que").format(
                         info['entries'][int(choice.content) - 1]['title']), delete_after=30)
         else:
+            # Original code
             for e in info['entries']:
                 result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
                     info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
